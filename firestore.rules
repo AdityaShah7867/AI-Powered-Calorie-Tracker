@@ -1,0 +1,137 @@
+/**
+ * @fileoverview Firestore Security Rules for CalorieWise AI application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model. Each user can only access their own data.
+ *
+ * Data Structure:
+ * All data is nested under /users/{userId}, ensuring clear ownership and preventing unauthorized access.
+ * - /users/{userId}: Stores user profile information.
+ * - /users/{userId}/meals/{mealId}: Stores meal data for each user.
+ * - /users/{userId}/weeklyTargets/{weeklyTargetId}: Stores weekly calorie targets for each user.
+ *
+ * Key Security Decisions:
+ * - Users can only create, read, update, and delete their own user document and associated meals and weekly targets.
+ * - Listing all users is disallowed. Only the authenticated user can access their own data.
+ *
+ * Denormalization for Authorization:
+ * The 'userId' is embedded in the path for both meals and weeklyTargets, and is also present as a field in the document.
+ * This enables efficient security rules that avoid costly get() calls.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Controls access to user profile documents.
+     * @path /users/{userId}
+     * @allow (create) User with ID 'user123' can create their own profile.
+     *          Request: auth.uid = 'user123', resource.data.id = 'user123'
+     * @allow (get) User with ID 'user123' can get their own profile.
+     *          Request: auth.uid = 'user123'
+     * @allow (update) User with ID 'user123' can update their own profile.
+     *          Request: auth.uid = 'user123'
+     * @allow (delete) User with ID 'user123' can delete their own profile.
+     *          Request: auth.uid = 'user123'
+     * @deny (create) User with ID 'user123' cannot create a profile with a different ID.
+     *          Request: auth.uid = 'user123', resource.data.id = 'user456'
+     * @deny (get) User with ID 'user456' cannot get the profile of user 'user123'.
+     *          Request: auth.uid = 'user456'
+     * @deny (update) User with ID 'user456' cannot update the profile of user 'user123'.
+     *          Request: auth.uid = 'user456'
+     * @deny (delete) User with ID 'user456' cannot delete the profile of user 'user123'.
+     *          Request: auth.uid = 'user456'
+     * @principle Enforces document ownership for all operations on user profiles.
+     */
+    match /users/{userId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to meal documents for a specific user.
+     * @path /users/{userId}/meals/{mealId}
+     * @allow (create) User with ID 'user123' can create a meal under their profile.
+     *          Request: auth.uid = 'user123', resource.data.userId = 'user123'
+     * @allow (get) User with ID 'user123' can get a meal under their profile.
+     *          Request: auth.uid = 'user123'
+     * @allow (update) User with ID 'user123' can update a meal under their profile.
+     *          Request: auth.uid = 'user123'
+     * @allow (delete) User with ID 'user123' can delete a meal under their profile.
+     *          Request: auth.uid = 'user123'
+     * @deny (create) User with ID 'user456' cannot create a meal under the profile of user 'user123'.
+     *          Request: auth.uid = 'user456', resource.data.userId = 'user123'
+     * @deny (get) User with ID 'user456' cannot get a meal under the profile of user 'user123'.
+     *          Request: auth.uid = 'user456'
+     * @deny (update) User with ID 'user456' cannot update a meal under the profile of user 'user123'.
+     *          Request: auth.uid = 'user456'
+     * @deny (delete) User with ID 'user456' cannot delete a meal under the profile of user 'user123'.
+     *          Request: auth.uid = 'user456'
+     * @principle Enforces document ownership for all operations on meal documents.
+     */
+    match /users/{userId}/meals/{mealId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+     /**
+      * @description Controls access to weeklyTarget documents for a specific user.
+      * @path /users/{userId}/weeklyTargets/{weeklyTargetId}
+      * @allow (create) User with ID 'user123' can create a weeklyTarget under their profile.
+      *          Request: auth.uid = 'user123', resource.data.userId = 'user123'
+      * @allow (get) User with ID 'user123' can get a weeklyTarget under their profile.
+      *          Request: auth.uid = 'user123'
+      * @allow (update) User with ID 'user123' can update a weeklyTarget under their profile.
+      *          Request: auth.uid = 'user123'
+      * @allow (delete) User with ID 'user123' can delete a weeklyTarget under their profile.
+      *          Request: auth.uid = 'user123'
+      * @deny (create) User with ID 'user456' cannot create a weeklyTarget under the profile of user 'user123'.
+      *          Request: auth.uid = 'user456', resource.data.userId = 'user123'
+      * @deny (get) User with ID 'user456' cannot get a weeklyTarget under the profile of user 'user123'.
+      *          Request: auth.uid = 'user456'
+      * @deny (update) User with ID 'user456' cannot update a weeklyTarget under the profile of user 'user123'.
+      *          Request: auth.uid = 'user456'
+      * @deny (delete) User with ID 'user456' cannot delete a weeklyTarget under the profile of user 'user123'.
+      *          Request: auth.uid = 'user456'
+      * @principle Enforces document ownership for all operations on weeklyTarget documents.
+      */
+    match /users/{userId}/weeklyTargets/{weeklyTargetId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+  }
+}

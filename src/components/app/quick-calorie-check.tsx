@@ -13,7 +13,14 @@ import { Badge } from "../ui/badge";
 export function QuickCalorieCheck() {
   const [description, setDescription] = useState("");
   const [isChecking, setIsChecking] = useState(false);
-  const [result, setResult] = useState<{calories: number, items: string[]} | null>(null);
+  const [result, setResult] = useState<{
+    calories: number, 
+    items: string[], 
+    protein: number, 
+    carbohydrates: number, 
+    fat: number, 
+    fiber: number
+  } | null>(null);
   const { toast } = useToast();
 
   const handleCheck = async (e: React.FormEvent) => {
@@ -23,7 +30,14 @@ export function QuickCalorieCheck() {
         setResult(null);
         const response = await quickCheckCalories({ mealDescription: description.trim() });
         if(response.success && response.data) {
-            setResult({calories: response.data.estimatedCalories, items: response.data.foodItems});
+            setResult({
+              calories: response.data.estimatedCalories, 
+              items: response.data.foodItems,
+              protein: response.data.protein ?? 0,
+              carbohydrates: response.data.carbohydrates ?? 0,
+              fat: response.data.fat ?? 0,
+              fiber: response.data.fiber ?? 0
+            });
         } else {
             toast({
                 variant: 'destructive',
@@ -65,15 +79,38 @@ export function QuickCalorieCheck() {
           </Button>
         </form>
         {result && (
-            <div className="mt-4 rounded-lg border bg-card p-4">
+            <div className="mt-4 rounded-lg border bg-card p-4 space-y-3">
                 <div className="flex justify-between items-center">
                     <p className="font-medium">Estimated Calories</p>
                     <Badge variant="secondary" className="font-bold text-base bg-accent/20 text-accent-foreground">{result.calories} kcal</Badge>
                 </div>
-                <div className="flex flex-wrap gap-1 pt-2">
-                    {result.items.map(item => (
-                        <Badge key={item} variant="outline" className="text-xs">{item}</Badge>
-                    ))}
+                
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="flex justify-between items-center px-2 py-1.5 rounded-md bg-muted/50">
+                        <span className="text-muted-foreground">Protein</span>
+                        <span className="font-semibold">{result.protein}g</span>
+                    </div>
+                    <div className="flex justify-between items-center px-2 py-1.5 rounded-md bg-muted/50">
+                        <span className="text-muted-foreground">Carbs</span>
+                        <span className="font-semibold">{result.carbohydrates}g</span>
+                    </div>
+                    <div className="flex justify-between items-center px-2 py-1.5 rounded-md bg-muted/50">
+                        <span className="text-muted-foreground">Fat</span>
+                        <span className="font-semibold">{result.fat}g</span>
+                    </div>
+                    <div className="flex justify-between items-center px-2 py-1.5 rounded-md bg-muted/50">
+                        <span className="text-muted-foreground">Fiber</span>
+                        <span className="font-semibold">{result.fiber}g</span>
+                    </div>
+                </div>
+
+                <div>
+                    <p className="text-xs text-muted-foreground mb-1.5">Food Items:</p>
+                    <div className="flex flex-wrap gap-1">
+                        {result.items.map(item => (
+                            <Badge key={item} variant="outline" className="text-xs">{item}</Badge>
+                        ))}
+                    </div>
                 </div>
             </div>
         )}
