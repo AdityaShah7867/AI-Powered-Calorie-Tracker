@@ -133,5 +133,42 @@ service cloud.firestore {
       allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
+
+     /**
+      * @description Controls access to settings documents for a specific user.
+      * @path /users/{userId}/settings/{settingsId}
+      * @allow (create) User with ID 'user123' can create settings under their profile.
+      *          Request: auth.uid = 'user123', resource.data.userId = 'user123'
+      * @allow (get) User with ID 'user123' can get settings under their profile.
+      *          Request: auth.uid = 'user123'
+      * @allow (update) User with ID 'user123' can update settings under their profile.
+      *          Request: auth.uid = 'user123'
+      * @allow (delete) User with ID 'user123' can delete settings under their profile.
+      *          Request: auth.uid = 'user123'
+      * @deny (create) User with ID 'user456' cannot create settings under the profile of user 'user123'.
+      *          Request: auth.uid = 'user456', resource.data.userId = 'user123'
+      * @deny (get) User with ID 'user456' cannot get settings under the profile of user 'user123'.
+      *          Request: auth.uid = 'user456'
+      * @deny (update) User with ID 'user456' cannot update settings under the profile of user 'user123'.
+      *          Request: auth.uid = 'user456'
+      * @deny (delete) User with ID 'user456' cannot delete settings under the profile of user 'user123'.
+      *          Request: auth.uid = 'user456'
+      * @principle Enforces document ownership for all operations on settings documents.
+      */
+    match /users/{userId}/settings/{settingsId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
   }
 }

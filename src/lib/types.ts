@@ -19,6 +19,13 @@ export type WeeklyTarget = {
     targetCalories: number;
 }
 
+export type UserSettings = {
+    id: string;
+    userId: string;
+    proteinGoal: number;
+    dietaryPreference: DietaryPreference;
+}
+
 export type DietaryPreference = 'vegetarian-eggless' | 'non-vegetarian';
 
 export type SuggestionState = 

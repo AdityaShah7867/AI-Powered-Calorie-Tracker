@@ -10,13 +10,15 @@ import type { DietaryPreference } from "@/lib/types";
 interface SettingsProps {
   calorieGoal: number;
   onCalorieGoalChange: (value: number) => void;
+  proteinGoal?: number;
+  onProteinGoalChange?: (value: number) => void;
   dietPreference: DietaryPreference;
   onDietPreferenceChange: (value: DietaryPreference) => void;
   weeklyTarget: number;
   onWeeklyTargetChange: (value: number) => void;
 }
 
-export function Settings({ calorieGoal, onCalorieGoalChange, dietPreference, onDietPreferenceChange, weeklyTarget, onWeeklyTargetChange }: SettingsProps) {
+export function Settings({ calorieGoal, onCalorieGoalChange, proteinGoal = 150, onProteinGoalChange, dietPreference, onDietPreferenceChange, weeklyTarget, onWeeklyTargetChange }: SettingsProps) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center gap-2">
@@ -48,6 +50,17 @@ export function Settings({ calorieGoal, onCalorieGoalChange, dietPreference, onD
             onChange={(e) => onWeeklyTargetChange(Number(e.target.value))}
             className="text-lg"
           />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="protein-goal">Daily Protein Goal (g)</Label>
+          <Input
+            id="protein-goal"
+            type="number"
+            value={proteinGoal}
+            onChange={(e) => onProteinGoalChange?.(Number(e.target.value))}
+            className="text-lg"
+          />
+          <p className="text-xs text-muted-foreground">Recommended: 1.6-2.2g per kg of body weight.</p>
         </div>
         <div className="space-y-3">
           <Label>Dietary Preference</Label>

@@ -12,8 +12,11 @@ import { MealHistory } from '@/components/app/meal-history';
 import { FoodSuggestions } from '@/components/app/food-suggestions';
 import { WeeklyGoal } from '@/components/app/weekly-goal';
 import { QuickCalorieCheck } from '@/components/app/quick-calorie-check';
+import { ProteinIntakeChart } from '@/components/app/protein-intake-chart';
+import { PhotoMealLogger } from '@/components/app/photo-meal-logger';
 
-import type { DietaryPreference, Meal, WeeklyTarget } from '@/lib/types';
+import type { DietaryPreference, Meal, WeeklyTarget, UserSettings } from '@/lib/types';
+import type { FoodItem } from '@/ai/flows/analyze-meal-image';
 import { useToast } from '@/hooks/use-toast';
 import { submitMeal } from '@/app/actions';
 import { startOfWeek, endOfWeek } from 'date-fns';
@@ -24,6 +27,7 @@ export function Dashboard() {
   const { toast } = useToast();
 
   const [calorieGoal, setCalorieGoal] = useState(2000);
+  const [proteinGoal, setProteinGoal] = useState(150);
   const [dietPreference, setDietPreference] = useState<DietaryPreference>('vegetarian-eggless');
   
   const mealsQuery = useMemoFirebase(() => {
@@ -38,6 +42,16 @@ export function Dashboard() {
   }, [firestore, user]);
   const { data: meals, isLoading: mealsLoading } = useCollection<Meal>(mealsQuery);
 
+  // Query for all meals (for protein chart to access historical data)
+  const allMealsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(
+      collection(firestore, 'users', user.uid, 'meals'),
+      orderBy('date', 'desc')
+    );
+  }, [firestore, user]);
+  const { data: allMeals } = useCollection<Meal>(allMealsQuery);
+
   const weeklyTargetQuery = useMemoFirebase(() => {
     if (!user) return null;
     const today = new Date();
@@ -50,6 +64,17 @@ export function Dashboard() {
 
   const { data: weeklyTargets } = useCollection<WeeklyTarget>(weeklyTargetQuery);
   const weeklyTarget = weeklyTargets?.[0];
+
+  // Query for user settings (protein goal and dietary preference)
+  const userSettingsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(
+      collection(firestore, 'users', user.uid, 'settings')
+    );
+  }, [firestore, user]);
+
+  const { data: userSettingsData } = useCollection<UserSettings>(userSettingsQuery);
+  const userSettings = userSettingsData?.[0];
 
   const weeklyMealsQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -66,6 +91,7 @@ export function Dashboard() {
 
   const [isLoggingMeal, setIsLoggingMeal] = useState(false);
 
+  // Initialize weekly target
   useEffect(() => {
     if (weeklyTarget) {
       setCalorieGoal(Math.round(weeklyTarget.targetCalories / 7));
@@ -79,6 +105,22 @@ export function Dashboard() {
         addDocumentNonBlocking(collection(firestore, 'users', user.uid, 'weeklyTargets'), newTarget);
     }
   }, [weeklyTarget, user, firestore]);
+
+  // Initialize user settings (protein goal and dietary preference)
+  useEffect(() => {
+    if (userSettings) {
+      setProteinGoal(userSettings.proteinGoal);
+      setDietPreference(userSettings.dietaryPreference);
+    } else if (user) {
+      // Create default settings for new users
+      const defaultSettings: Omit<UserSettings, 'id'> = {
+        userId: user.uid,
+        proteinGoal: 150,
+        dietaryPreference: 'vegetarian-eggless'
+      };
+      addDocumentNonBlocking(collection(firestore, 'users', user.uid, 'settings'), defaultSettings);
+    }
+  }, [userSettings, user, firestore]);
   
   const totalCalories = useMemo(() => {
     return meals?.reduce((sum, meal) => sum + meal.calories, 0) || 0;
@@ -116,6 +158,36 @@ export function Dashboard() {
     setIsLoggingMeal(false);
   };
 
+  const handleLogPhotoMeal = async (foodItems: FoodItem[], imageUrl: string) => {
+    if (!user) return;
+    
+    // Calculate totals from food items
+    const totalCalories = foodItems.reduce((sum, item) => sum + item.calories, 0);
+    const totalProtein = foodItems.reduce((sum, item) => sum + (item.protein || 0), 0);
+    const totalCarbs = foodItems.reduce((sum, item) => sum + (item.carbohydrates || 0), 0);
+    const totalFat = foodItems.reduce((sum, item) => sum + (item.fat || 0), 0);
+    const totalFiber = foodItems.reduce((sum, item) => sum + (item.fiber || 0), 0);
+    
+    const newMeal: Omit<Meal, 'id'> = {
+      userId: user.uid,
+      name: 'Photo Meal',
+      date: new Date().toISOString(),
+      description: foodItems.map(item => `${item.name} (${item.quantity})`).join(', '),
+      foodItems: foodItems.map(item => item.name),
+      calories: totalCalories,
+      protein: totalProtein,
+      carbohydrates: totalCarbs,
+      fat: totalFat,
+      fiber: totalFiber,
+    };
+    
+    await addDocumentNonBlocking(collection(firestore, 'users', user.uid, 'meals'), newMeal);
+    toast({
+      title: "Photo Meal Logged!",
+      description: `${foodItems.length} items, ${totalCalories} calories.`,
+    });
+  };
+
   const handleDeleteMeal = async (mealId: string) => {
     if (!user) return;
     const mealRef = doc(firestore, 'users', user.uid, 'meals', mealId);
@@ -138,6 +210,26 @@ export function Dashboard() {
     }
   };
 
+  const handleProteinGoalChange = async (newProteinGoal: number) => {
+    if (!user) return;
+    setProteinGoal(newProteinGoal);
+    if (userSettings) {
+      const settingsRef = doc(firestore, 'users', user.uid, 'settings', userSettings.id);
+      await updateDocumentNonBlocking(settingsRef, { proteinGoal: newProteinGoal });
+      toast({ title: 'Protein Goal Updated', description: `New goal: ${newProteinGoal}g` });
+    }
+  };
+
+  const handleDietPreferenceChange = async (newPreference: DietaryPreference) => {
+    if (!user) return;
+    setDietPreference(newPreference);
+    if (userSettings) {
+      const settingsRef = doc(firestore, 'users', user.uid, 'settings', userSettings.id);
+      await updateDocumentNonBlocking(settingsRef, { dietaryPreference: newPreference });
+      toast({ title: 'Dietary Preference Updated' });
+    }
+  };
+
   return (
     <div className="grid auto-rows-max items-start gap-4 md:gap-8 lg:grid-cols-3">
       <div className="grid gap-4 lg:col-span-2">
@@ -146,6 +238,7 @@ export function Dashboard() {
             <MealLogger onLogMeal={handleLogMeal} isLogging={isLoggingMeal} />
             <QuickCalorieCheck />
         </div>
+        <PhotoMealLogger onLogMeal={handleLogPhotoMeal} />
         <WeeklyGoal
           weeklyTarget={weeklyTarget?.targetCalories || 14000}
           weeklyMeals={weeklyMeals || []}
@@ -156,11 +249,14 @@ export function Dashboard() {
         />
       </div>
       <div className="grid gap-4">
+        <ProteinIntakeChart meals={allMeals || []} proteinGoal={proteinGoal} />
         <Settings
           calorieGoal={calorieGoal}
           onCalorieGoalChange={setCalorieGoal}
+          proteinGoal={proteinGoal}
+          onProteinGoalChange={handleProteinGoalChange}
           dietPreference={dietPreference}
-          onDietPreferenceChange={setDietPreference}
+          onDietPreferenceChange={handleDietPreferenceChange}
           weeklyTarget={weeklyTarget?.targetCalories || 14000}
           onWeeklyTargetChange={handleWeeklyTargetChange}
         />
