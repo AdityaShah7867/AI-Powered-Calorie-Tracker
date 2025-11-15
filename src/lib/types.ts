@@ -41,3 +41,25 @@ export type SuggestionInput = {
     answer: string;
     history: { question: string; answer: string }[];
 }
+
+export type Recipe = {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  ingredients: RecipeIngredient[];
+  servings: number;
+  calories: number;
+  protein?: number;
+  carbohydrates?: number;
+  fat?: number;
+  fiber?: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RecipeIngredient = {
+  name: string;
+  quantity: string; // e.g., "2 cups", "100g", "1 tbsp"
+  notes?: string;
+};

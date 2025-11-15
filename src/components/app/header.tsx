@@ -5,7 +5,7 @@ import { useUser } from '@/firebase';
 import { Logo } from "@/components/icons";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { User as UserIcon, History } from 'lucide-react';
+import { User as UserIcon, History, ChefHat } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -28,6 +28,12 @@ export function AppHeader() {
         </Link>
       {user && (
         <div className='flex items-center gap-2'>
+            <Link href="/recipes">
+                <Button variant="ghost" size="icon">
+                    <ChefHat className="h-5 w-5" />
+                    <span className="sr-only">Recipes</span>
+                </Button>
+            </Link>
             <Link href="/history">
                 <Button variant="ghost" size="icon">
                     <History className="h-5 w-5" />

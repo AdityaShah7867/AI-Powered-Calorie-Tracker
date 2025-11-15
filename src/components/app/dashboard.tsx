@@ -15,7 +15,7 @@ import { QuickCalorieCheck } from '@/components/app/quick-calorie-check';
 import { ProteinIntakeChart } from '@/components/app/protein-intake-chart';
 import { PhotoMealLogger } from '@/components/app/photo-meal-logger';
 
-import type { DietaryPreference, Meal, WeeklyTarget, UserSettings } from '@/lib/types';
+import type { DietaryPreference, Meal, WeeklyTarget, UserSettings, Recipe } from '@/lib/types';
 import type { FoodItem } from '@/ai/flows/analyze-meal-image';
 import { useToast } from '@/hooks/use-toast';
 import { submitMeal } from '@/app/actions';
@@ -183,12 +183,39 @@ export function Dashboard() {
       fat: totalFat,
       fiber: totalFiber,
     };
-    
+
     await addDocumentNonBlocking(collection(firestore, 'users', user.uid, 'meals'), newMeal);
+    
     toast({
-      title: "Photo Meal Logged!",
-      description: `${foodItems.length} items, ${totalCalories} calories.`,
+      title: "Meal Logged!",
+      description: `Photo meal with ${totalCalories} calories logged.`,
     });
+  };
+
+  const handleLogRecipe = async (recipe: Recipe, servings: number) => {
+    if (!user) return;
+    setIsLoggingMeal(true);
+
+    const newMeal: Omit<Meal, 'id'> = {
+      userId: user.uid,
+      name: recipe.name,
+      date: new Date().toISOString(),
+      description: `${recipe.name} (${servings} serving${servings !== 1 ? 's' : ''})`,
+      foodItems: recipe.ingredients.map(ing => ing.name),
+      calories: Math.round(recipe.calories * servings),
+      protein: recipe.protein ? Math.round(recipe.protein * servings) : undefined,
+      carbohydrates: recipe.carbohydrates ? Math.round(recipe.carbohydrates * servings) : undefined,
+      fat: recipe.fat ? Math.round(recipe.fat * servings) : undefined,
+      fiber: recipe.fiber ? Math.round(recipe.fiber * servings) : undefined,
+    };
+
+    await addDocumentNonBlocking(collection(firestore, 'users', user.uid, 'meals'), newMeal);
+    
+    toast({
+      title: "Recipe Meal Logged!",
+      description: `${recipe.name} (${servings} serving${servings !== 1 ? 's' : ''}) logged with ${newMeal.calories} calories.`,
+    });
+    setIsLoggingMeal(false);
   };
 
   const handleDeleteMeal = async (mealId: string) => {
@@ -251,7 +278,7 @@ export function Dashboard() {
       <div className="grid gap-4 lg:col-span-2">
         <CalorieTracker totalCalories={totalCalories} calorieGoal={calorieGoal} />
         <div className="grid md:grid-cols-2 gap-4">
-            <MealLogger onLogMeal={handleLogMeal} isLogging={isLoggingMeal} />
+            <MealLogger onLogMeal={handleLogMeal} onLogRecipe={handleLogRecipe} isLogging={isLoggingMeal} />
             <QuickCalorieCheck />
         </div>
         <PhotoMealLogger onLogMeal={handleLogPhotoMeal} />
@@ -288,3 +315,4 @@ export function Dashboard() {
     </div>
   );
 }
+

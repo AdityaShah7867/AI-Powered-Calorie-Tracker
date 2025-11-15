@@ -170,5 +170,42 @@ service cloud.firestore {
       allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
+
+    /**
+      * @description Controls access to recipe documents for a specific user.
+      * @path /users/{userId}/recipes/{recipeId}
+      * @allow (create) User with ID 'user123' can create recipes under their profile.
+      *          Request: auth.uid = 'user123', resource.data.userId = 'user123'
+      * @allow (get) User with ID 'user123' can get recipes under their profile.
+      *          Request: auth.uid = 'user123'
+      * @allow (update) User with ID 'user123' can update recipes under their profile.
+      *          Request: auth.uid = 'user123'
+      * @allow (delete) User with ID 'user123' can delete recipes under their profile.
+      *          Request: auth.uid = 'user123'
+      * @deny (create) User with ID 'user456' cannot create recipes under the profile of user 'user123'.
+      *          Request: auth.uid = 'user456', resource.data.userId = 'user123'
+      * @deny (get) User with ID 'user456' cannot get recipes under the profile of user 'user123'.
+      *          Request: auth.uid = 'user456'
+      * @deny (update) User with ID 'user456' cannot update recipes under the profile of user 'user123'.
+      *          Request: auth.uid = 'user456'
+      * @deny (delete) User with ID 'user456' cannot delete recipes under the profile of user 'user123'.
+      *          Request: auth.uid = 'user456'
+      * @principle Enforces document ownership for all operations on recipe documents.
+      */
+    match /users/{userId}/recipes/{recipeId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
   }
 }
