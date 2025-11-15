@@ -24,6 +24,7 @@ export type UserSettings = {
     userId: string;
     proteinGoal: number;
     dietaryPreference: DietaryPreference;
+    aiModel?: string; // Gemini model name (e.g., 'gemini-1.5-flash')
 }
 
 export type DietaryPreference = 'vegetarian-eggless' | 'non-vegetarian';

@@ -29,6 +29,7 @@ export function Dashboard() {
   const [calorieGoal, setCalorieGoal] = useState(2000);
   const [proteinGoal, setProteinGoal] = useState(150);
   const [dietPreference, setDietPreference] = useState<DietaryPreference>('vegetarian-eggless');
+  const [aiModel, setAiModel] = useState('gemini-2.5-flash');
   
   const mealsQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -111,12 +112,14 @@ export function Dashboard() {
     if (userSettings) {
       setProteinGoal(userSettings.proteinGoal);
       setDietPreference(userSettings.dietaryPreference);
+      setAiModel(userSettings.aiModel || 'gemini-2.5-flash');
     } else if (user) {
       // Create default settings for new users
       const defaultSettings: Omit<UserSettings, 'id'> = {
         userId: user.uid,
         proteinGoal: 150,
-        dietaryPreference: 'vegetarian-eggless'
+        dietaryPreference: 'vegetarian-eggless',
+        aiModel: 'gemini-2.5-flash',
       };
       addDocumentNonBlocking(collection(firestore, 'users', user.uid, 'settings'), defaultSettings);
     }
@@ -230,6 +233,19 @@ export function Dashboard() {
     }
   };
 
+  const handleAIModelChange = async (newModel: string) => {
+    if (!user) return;
+    setAiModel(newModel);
+    if (userSettings) {
+      const settingsRef = doc(firestore, 'users', user.uid, 'settings', userSettings.id);
+      await updateDocumentNonBlocking(settingsRef, { aiModel: newModel });
+      toast({ 
+        title: 'AI Model Updated', 
+        description: `Now using ${newModel}. Changes will apply to new requests.`
+      });
+    }
+  };
+
   return (
     <div className="grid auto-rows-max items-start gap-4 md:gap-8 lg:grid-cols-3">
       <div className="grid gap-4 lg:col-span-2">
@@ -259,6 +275,8 @@ export function Dashboard() {
           onDietPreferenceChange={handleDietPreferenceChange}
           weeklyTarget={weeklyTarget?.targetCalories || 14000}
           onWeeklyTargetChange={handleWeeklyTargetChange}
+          aiModel={aiModel}
+          onAIModelChange={handleAIModelChange}
         />
         <MealHistory 
             meals={meals || []} 

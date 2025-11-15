@@ -4,8 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Cog } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Cog, Brain } from "lucide-react";
 import type { DietaryPreference } from "@/lib/types";
+import { useEffect, useState } from "react";
+import { getAvailableAIModels } from "@/app/actions";
+import type { GeminiModel } from "@/ai/models";
 
 interface SettingsProps {
   calorieGoal: number;
@@ -16,9 +20,26 @@ interface SettingsProps {
   onDietPreferenceChange: (value: DietaryPreference) => void;
   weeklyTarget: number;
   onWeeklyTargetChange: (value: number) => void;
+  aiModel?: string;
+  onAIModelChange?: (value: string) => void;
 }
 
-export function Settings({ calorieGoal, onCalorieGoalChange, proteinGoal = 150, onProteinGoalChange, dietPreference, onDietPreferenceChange, weeklyTarget, onWeeklyTargetChange }: SettingsProps) {
+export function Settings({ calorieGoal, onCalorieGoalChange, proteinGoal = 150, onProteinGoalChange, dietPreference, onDietPreferenceChange, weeklyTarget, onWeeklyTargetChange, aiModel = 'gemini-2.5-flash', onAIModelChange }: SettingsProps) {
+  const [availableModels, setAvailableModels] = useState<GeminiModel[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(true);
+
+  useEffect(() => {
+    async function loadModels() {
+      setIsLoadingModels(true);
+      const result = await getAvailableAIModels();
+      if (result.success && result.data) {
+        setAvailableModels(result.data);
+      }
+      setIsLoadingModels(false);
+    }
+    loadModels();
+  }, []);
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center gap-2">
@@ -78,6 +99,35 @@ export function Settings({ calorieGoal, onCalorieGoalChange, proteinGoal = 150, 
             </div>
           </RadioGroup>
         </div>
+        
+        {onAIModelChange && (
+          <div className="space-y-2 pt-4 border-t">
+            <div className="flex items-center gap-2">
+              <Brain className="h-4 w-4 text-muted-foreground" />
+              <Label htmlFor="ai-model">AI Model</Label>
+            </div>
+            <Select value={aiModel} onValueChange={onAIModelChange} disabled={isLoadingModels}>
+              <SelectTrigger id="ai-model">
+                <SelectValue placeholder={isLoadingModels ? "Loading models..." : "Select AI model"} />
+              </SelectTrigger>
+              <SelectContent>
+                {availableModels.map((model) => (
+                  <SelectItem key={model.name} value={model.name}>
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium">{model.displayName}</span>
+                      {model.description && (
+                        <span className="text-xs text-muted-foreground">{model.description}</span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Choose the AI model for meal analysis. Flash models are faster, Pro models are more accurate.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

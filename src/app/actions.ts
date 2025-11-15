@@ -3,6 +3,7 @@
 import { getFoodSuggestions, GetFoodSuggestionsInput } from '@/ai/flows/get-food-suggestions';
 import { logMeal, LogMealInput } from '@/ai/flows/log-meal-with-ai';
 import { analyzeMealImage, AnalyzeMealImageInput } from '@/ai/flows/analyze-meal-image';
+import { fetchAvailableModels, type GeminiModel } from '@/ai/models';
 
 export async function submitMeal(data: LogMealInput) {
   try {
@@ -41,5 +42,15 @@ export async function analyzeMealPhoto(data: AnalyzeMealImageInput) {
   } catch (error) {
     console.error(error);
     return { success: false, error: 'Failed to analyze meal image. Please try again.' };
+  }
+}
+
+export async function getAvailableAIModels(): Promise<{ success: boolean; data?: GeminiModel[]; error?: string }> {
+  try {
+    const models = await fetchAvailableModels();
+    return { success: true, data: models };
+  } catch (error) {
+    console.error('Error fetching AI models:', error);
+    return { success: false, error: 'Failed to fetch AI models' };
   }
 }
